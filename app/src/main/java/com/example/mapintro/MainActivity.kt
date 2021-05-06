@@ -48,7 +48,6 @@ import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions
 import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.Property
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory.*
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
@@ -57,9 +56,6 @@ import com.mapbox.services.android.navigation.ui.v5.NavigationLauncher
 import com.mapbox.services.android.navigation.ui.v5.NavigationLauncherOptions
 import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigation
 import com.mapbox.services.android.navigation.v5.navigation.NavigationRoute
-import com.microsoft.appcenter.AppCenter
-import com.microsoft.appcenter.analytics.Analytics
-import com.microsoft.appcenter.crashes.Crashes
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -67,7 +63,6 @@ import retrofit2.Response
 class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  PermissionsListener {
 
 
-    private lateinit var source: LatLng
     private var c: Int = 0
     private var mapView:MapView? = null
     private lateinit var mapboxMap:MapboxMap
@@ -91,9 +86,6 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
         Mapbox.getInstance(this, getString(R.string.mapbox_access_token))
 
         setContentView(R.layout.activity_main)
-        AppCenter.start(application, "6de77a9f-ab32-4191-817d-4732703338f8",
-                Analytics::class.java, Crashes::class.java)
-
         navigation = MapboxNavigation(this, getString(R.string.mapbox_access_token))
         mapView = findViewById(R.id.mapView)
         mapView?.onCreate(savedInstanceState)
@@ -109,8 +101,8 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
                 initSearchFab() // function to initialize location search
 
                 addUserLocations() //function to add default location in auto complete search
-                var drawable: Drawable? = ResourcesCompat.getDrawable(resources, R.drawable.ic_arrow_head, null)
-                var mBitMap: Bitmap = BitmapUtils.getBitmapFromDrawable(drawable)!!
+                val drawable: Drawable? = ResourcesCompat.getDrawable(resources, R.drawable.ic_arrow_head, null)
+                val mBitMap: Bitmap = BitmapUtils.getBitmapFromDrawable(drawable)!!
                 it.addImage(symbolIconId, mBitMap)
 
                 setUpSource(it) //create emppty geoJson source using emptyfeature collection
@@ -119,28 +111,28 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
                 initSource(it)
                 initLayer(it)
 
-                mapboxMap.addOnMapClickListener {
+                mapboxMap.addOnMapClickListener { point->
                     if (c == 0) {
-                        origin = Point.fromLngLat(it.longitude, it.latitude)
+                        origin = Point.fromLngLat(point.longitude, point.latitude)
                         //source = it
-                        var markerOPtions: MarkerOptions = MarkerOptions()
-                        markerOPtions.position(it)
+                        val markerOPtions: MarkerOptions = MarkerOptions()
+                        markerOPtions.position(point)
                         markerOPtions.title("source")
                         mapboxMap.addMarker(markerOPtions)
-                        reverseGeoCodeFun(it, c)
+                        reverseGeoCodeFun(point, c)
 
                     }
 
                     if (c == 1) {
-                        destination = Point.fromLngLat(it.longitude, it.latitude)
-                        getRoute(mapboxMap,origin, destination)
-                        var markerOPtions2: MarkerOptions = MarkerOptions()
-                        markerOPtions2.position(it)
+                        destination = Point.fromLngLat(point.longitude, point.latitude)
+                        getRoute(origin, destination)
+                        val markerOPtions2: MarkerOptions = MarkerOptions()
+                        markerOPtions2.position(point)
                         markerOPtions2.title("destination")
                         mapboxMap.addMarker(markerOPtions2)
-                        reverseGeoCodeFun(it, c)
+                        reverseGeoCodeFun(point, c)
 
-                        getRoute(mapboxMap,origin, destination)
+                        getRoute(origin, destination)
 
                     }
 
@@ -173,7 +165,7 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
 
             locationComponent.isLocationComponentEnabled = true
 
-            locationComponent.setCameraMode(CameraMode.TRACKING)
+            locationComponent.cameraMode = CameraMode.TRACKING
 
             locationComponent.renderMode = RenderMode.COMPASS
         }
@@ -210,7 +202,7 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
             .build()
     }
 
-    private fun getRoute(mapboxMap: MapboxMap, origin: Point, destination: Point?) {
+    private fun getRoute(origin: Point, destination: Point?) {
         client = MapboxDirections.builder()
             .origin(origin)
             .destination(destination!!)
@@ -235,20 +227,23 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
                     call: Call<DirectionsResponse>,
                     response: Response<DirectionsResponse>
                 ) {
-                    if (response.body() == null) {
-                        return
-                    } else if (response.body()!!.routes().size < 1) {
-                        return
-                    }
-                    else {
-                        var route: DirectionsRoute = response.body()!!.routes().get(0)
+                    when {
+                        response.body() == null -> {
+                            return
+                        }
+                        response.body()!!.routes().size < 1 -> {
+                            return
+                        }
+                        else -> {
+                            val route: DirectionsRoute = response.body()!!.routes()[0]
 
-                        var navigateLauncherOptions: NavigationLauncherOptions = NavigationLauncherOptions.builder()
-                            .directionsRoute(route)
-                            .shouldSimulateRoute(true)
-                            .build()
+                            val navigateLauncherOptions: NavigationLauncherOptions = NavigationLauncherOptions.builder()
+                                    .directionsRoute(route)
+                                    .shouldSimulateRoute(true)
+                                    .build()
 
-                        NavigationLauncher.startNavigation(this@MainActivity, navigateLauncherOptions)
+                            NavigationLauncher.startNavigation(this@MainActivity, navigateLauncherOptions)
+                        }
                     }
                 }
 
@@ -256,30 +251,30 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
     }
 
     private fun initLayer(it: Style) {
-        var routeLayer: LineLayer = LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID)
+        val routeLayer = LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID)
         routeLayer.setProperties(
             lineCap(Property.LINE_CAP_ROUND),
-            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+            lineJoin(Property.LINE_JOIN_ROUND),
             lineWidth(5f),
         lineColor(Color.parseColor(getString(R.string.line_color))))
         it.addLayer(routeLayer)
 
         it.addImage(RED_PIN_ICON_ID,
-            BitmapUtils.getBitmapFromDrawable(getResources().getDrawable(R.drawable.ic_arrow_head))!!)
+            BitmapUtils.getBitmapFromDrawable(ResourcesCompat.getDrawable(resources, R.drawable.ic_arrow_head, null))!!)
 
 
-//        it.addLayer(SymbolLayer(ICON_LAYER_ID, ICON_SOURCE_ID).withProperties(
-//            PropertyFactory.iconImage(RED_PIN_ICON_ID),
-//            PropertyFactory.iconIgnorePlacement(true),
-//            PropertyFactory.iconAllowOverlap(true),
-//            PropertyFactory.iconOffset(arrayOf(0f, -9f))
-//        ))
+        it.addLayer(SymbolLayer(ICON_LAYER_ID, ICON_SOURCE_ID).withProperties(
+            iconImage(RED_PIN_ICON_ID),
+            iconIgnorePlacement(true),
+            iconAllowOverlap(true),
+            iconOffset(arrayOf(0f, -9f))
+        ))
 
     }
 
     private fun initSource(it: Style) {
         it.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
-        var iconGeoJsonSource: GeoJsonSource = GeoJsonSource(ICON_SOURCE_ID, FeatureCollection.fromFeatures(
+        val iconGeoJsonSource = GeoJsonSource(ICON_SOURCE_ID, FeatureCollection.fromFeatures(
             arrayOf(
                 Feature.fromGeometry(Point.fromLngLat(origin.longitude(),origin.latitude())),
                 Feature.fromGeometry(Point.fromLngLat(destination.longitude(),destination.latitude()))
@@ -288,7 +283,7 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
     }
 
     private fun reverseGeoCodeFun(point: LatLng, c: Int) {
-        var geoCoding: MapboxGeocoding = MapboxGeocoding.builder()
+        val geoCoding: MapboxGeocoding = MapboxGeocoding.builder()
             .accessToken(getString(R.string.mapbox_access_token))
             .query(Point.fromLngLat(point.longitude,point.latitude))
             .geocodingTypes(GeocodingCriteria.TYPE_POI)
@@ -299,24 +294,24 @@ class MainActivity : AppCompatActivity(), Callback<DirectionsResponse>,  Permiss
 
 
             override fun onResponse(call: Call<GeocodingResponse>, response: Response<GeocodingResponse>) {
-              var results: List<CarmenFeature>? = response.body()?.features()
+              val results: List<CarmenFeature>? = response.body()?.features()
                 if (results?.size!! > 0) {
 
                     var firstResultPoint: Point? = results[0].center()
-                    var feature: CarmenFeature = results[0]
+                    val feature: CarmenFeature = results[0]
 
 
 
                     if (c==0) {
                         startLocation +=feature.placeName()
-                        val tv:TextView = findViewById(R.id.s)
-                        tv.text = startLocation
+                        val textViewSource:TextView = findViewById(R.id.s)
+                        textViewSource.text = startLocation
                     }
 
                     if (c==1) {
                         endLocation+=feature.placeName()
-                        val tv2:TextView = findViewById(R.id.d)
-                        tv2.text = endLocation
+                        val txtViewDestination:TextView = findViewById(R.id.d)
+                        txtViewDestination.text = endLocation
                     }
 
 
@@ -370,29 +365,20 @@ override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
             return
         }
 
-        val currentRoute: DirectionsRoute = response.body()!!.routes().get(0)
-        var distance = currentRoute.distance()?.div(1000)
+        val currentRoute: DirectionsRoute = response.body()!!.routes()[0]
+        val distance = currentRoute.distance()?.div(1000)
         st = String.format("%.2f k.m", distance)
         dv.text = st
 
-        if (mapboxMap != null) {
-            mapboxMap.getStyle(object: Style.OnStyleLoaded {
-                override fun onStyleLoaded(style: Style) {
-                    var geoJsonSource: GeoJsonSource? = style.getSourceAs(ROUTE_SOURCE_ID)
-                    if (geoJsonSource != null) {
-                        geoJsonSource.setGeoJson(LineString.fromPolyline(currentRoute.geometry()!!, Constants.PRECISION_6))
-
-                    }
-                }
-
-            })
+        mapboxMap.getStyle { style ->
+            style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)?.setGeoJson(LineString.fromPolyline(currentRoute.geometry()!!, Constants.PRECISION_6))
         }
 
     }
 
     private fun initSearchFab() {
         findViewById<FloatingActionButton>(R.id.fab).setOnClickListener {
-          var intent =   PlaceAutocomplete.IntentBuilder()
+          val intent =   PlaceAutocomplete.IntentBuilder()
                 .accessToken(Mapbox.getAccessToken()?: getString(R.string.mapbox_access_token))
                 .placeOptions(PlaceOptions.builder()
                     .backgroundColor(Color.parseColor("#EEEEEE"))
@@ -409,19 +395,15 @@ override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode== Activity.RESULT_OK  && requestCode == REQUEST_CODE) {
 
-            var selectedCarmenFeature = PlaceAutocomplete.getPlace(data)
+            val selectedCarmenFeature = PlaceAutocomplete.getPlace(data)
 
             if (mapboxMap != null) {
-                var style = mapboxMap.getStyle()
+                val style = mapboxMap.getStyle()
 
                 if (style != null) {
-                    var newSource = style.getSourceAs<GeoJsonSource>(geoJsonSourceLayerId)
-                    if(newSource != null) {
-                        newSource.setGeoJson(FeatureCollection.fromFeature(
+                    style.getSourceAs<GeoJsonSource>(geoJsonSourceLayerId)?.setGeoJson(FeatureCollection.fromFeature(
                             Feature.fromJson(selectedCarmenFeature.toJson())
-                        ))
-
-                    }
+                    ))
 
                     mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(
                         CameraPosition.Builder()
